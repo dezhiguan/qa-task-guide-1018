@@ -111,13 +111,12 @@ def _extract_df_id(text: str) -> Optional[str]:
     # but tolerant of Chinese punctuation (、，。), ASCII punctuation (-), and whitespace.
     # Does NOT require surrounding delimiters — matches at start/end too.
     # Examples that must match: "DF-0012", "任务DF-0013", "DF-0014、DF-0015", "DF-0016.", "(DF-0017)", "DF-0018，"
-    m = re.search(r'DF-(\d{4,})', text)
+    # Match DF- followed by 4+ digits, tolerant of Chinese/ASCII punctuation and whitespace around
+    # Use word-boundary-like logic: require start/end or non-alnum before/after the full DF-\d+ match
+    # This handles: "DF-0010、DF-0011", "任务DF-0010，给出建议", "DF-0010。", "(DF-0010)"
+    pattern = r'(?:^|[^a-zA-Z0-9\u4e00-\u9fff])DF-(\d{4,})(?=$|[^a-zA-Z0-9\u4e00-\u9fff])'
+    m = re.search(pattern, text)
     if not m:
-        return None
-    # Post-filter: ensure matched digits aren't part of longer digit sequence (e.g., reject DF-00123 in "DF-001234")
-    # by checking that next char (if exists) is non-digit or end-of-string
-    end_pos = m.end()
-    if end_pos < len(text) and text[end_pos].isdigit():
         return None
     return f"DF-{m.group(1)}"
 
