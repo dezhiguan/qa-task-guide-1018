@@ -144,6 +144,11 @@ async def test_execute_df_id_with_chinese_punctuation():
         assert result["decision"] == "PASS", f"Failed on input: {inp}"
         assert "answer" in result
 
+    # Also test single-match in multi-ID context that should BLOCK due to >1 match
+    result_multi = await execute({"text": "DF-0010、DF-0011"}, ctx)
+    assert result_multi["decision"] == "BLOCKED"
+    assert "未在输入中找到有效的DF-编号" in result_multi["block_reason"]
+
 
 @pytest.mark.asyncio
 async def test_execute_multiple_df_ids_blocked():

@@ -111,6 +111,10 @@ def _extract_df_id(text: str) -> Optional[str]:
     # Must match *exactly one* DF-<digits> in input; multiple IDs → BLOCKED per H2 boundary case a-4.
     # Supports: "DF-0010", "任务DF-0010", "DF-0010、DF-0011" (first only), "DF-0010，给出建议", "DF-0010。"
     # Uses simple left-to-right greedy match — no lookbehind/lookahead needed for this spec.
+    # Match DF- followed by 4+ digits, tolerant of Chinese/ASCII punctuation and whitespace.
+    # Must match *exactly one* DF-<digits> in input; multiple IDs → BLOCKED per H2 boundary case a-4.
+    # Supports: "DF-0010", "任务DF-0010", "DF-0010、DF-0011" (first only), "DF-0010，给出建议", "DF-0010。"
+    # Uses simple left-to-right greedy match — no lookbehind/lookahead needed for this spec.
     pattern = r'DF-(\d{4,})'
     matches = re.findall(pattern, text)
     if len(matches) != 1:
