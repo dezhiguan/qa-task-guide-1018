@@ -108,17 +108,20 @@ async def execute(data: dict, ctx) -> dict:
 
 def _extract_df_id(text: str) -> Optional[str]:
     # Per H1: extract *exactly one* DF-ID token from natural language input.
-    # Accepts Chinese-adjacent, punctuation-adjacent, and bare DF-<digits>.
-    # Rejects embedded (e.g., 'abcDF-0010def') and multi-ID inputs (e.g., 'DF-0010、DF-0011').
-    # Uses Unicode-aware boundary logic: DF-<digits> must be bounded by non-alnum,
-    # i.e., whitespace, punctuation (ASCII or Chinese), or string edge — but CJK chars *are allowed as adjacent*.
-    # So we use \b-like logic via negative lookahead/behind on alnum only — not CJK.
-    # Valid: '任务DF-0010', 'DF-0010，给出工具建议', 'DF-0010。', 'DF-0010', 'DF-0010、DF-0011' → first match only *if exactly one*, else reject.
-    # We first find *all* DF-\d+ substrings that are not embedded in alnum sequences.
-    # Then validate count == 1.
-    # Pattern: word-boundary-like for alnum only; allow CJK, punctuation, space before/after.
-    pattern = r'(?<!\w)DF-(\d+)(?!\w)'
-    matches = list(re.findall(pattern, text))
+    # Accepts Chinese-adjacent (e.g., '任务DF-0010', 'DF-0010，'), ASCII-punctuation-adjacent, and bare DF-<digits>.
+    # Rejects embedded (e.g., 'abcDF-0010def') and multi-ID inputs (e.g., 'DF-0010、DF-0011') → must BLOCKED.
+    # Use non-alphanumeric boundary: match DF-\d+ where preceded/followed by start/end or non-alnum (including CJK).
+    # This avoids \b (which treats CJK as word chars) and instead uses lookarounds on [^a-zA-Z0-9].
+    # Pattern: DF- followed by ≥1 digit, bounded by ^, $, or any non-alnum (whitespace, punctuation, CJK, etc.)
+    pattern = r'(?:^|[^a-zA-Z0-9])DF-(\d+)(?:[^a-zA-Z0-9]|$)'
+    matches = []
+    for m in re.finditer(pattern, text):
+        # Extract full DF-<digits> substring, trimming boundary chars
+        full_match = text[m.start():m.end()]
+        # Strip leading/trailing non-alnum to isolate DF-\d+
+        stripped = re.sub(r'^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$', '', full_match)
+        if stripped.startswith('DF-') and stripped[3:].isdigit():
+            matches.append(stripped[3:])  # store digits only
     if len(matches) != 1:
         return None
     return f"DF-{matches[0]}"
