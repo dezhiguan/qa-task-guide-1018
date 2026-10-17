@@ -107,12 +107,19 @@ async def execute(data: dict, ctx) -> dict:
 
 
 def _extract_df_id(text: str) -> Optional[str]:
-    # Match DF- followed by 4+ digits, optionally surrounded by Chinese/ASCII punctuation or whitespace
-    # Accepts: DF-0012, 任务DF-0013，DF-0014、DF-0015。
-    m = re.search(r'(?:^|\s|[，。、；：！？\(\)\[\]"\'\-])DF-(\d{4,})(?=$|\s|[，。、；：！？\)\]"\'\-])', text)
-    if m:
-        return f"DF-{m.group(1)}"
-    return None
+    # Match DF- followed by 4+ digits, allowing loose boundaries: word-boundary-like,
+    # but tolerant of Chinese punctuation (、，。), ASCII punctuation (-), and whitespace.
+    # Does NOT require surrounding delimiters — matches at start/end too.
+    # Examples that must match: "DF-0012", "任务DF-0013", "DF-0014、DF-0015", "DF-0016.", "(DF-0017)", "DF-0018，"
+    m = re.search(r'DF-(\d{4,})', text)
+    if not m:
+        return None
+    # Post-filter: ensure matched digits aren't part of longer digit sequence (e.g., reject DF-00123 in "DF-001234")
+    # by checking that next char (if exists) is non-digit or end-of-string
+    end_pos = m.end()
+    if end_pos < len(text) and text[end_pos].isdigit():
+        return None
+    return f"DF-{m.group(1)}"
 
 
 def _blocked(reason: str) -> dict:

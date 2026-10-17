@@ -109,3 +109,37 @@ async def test_execute_empty_job_result():
 
     assert result["decision"] == "BLOCKED"
     assert "返回空或无效结果" in result["block_reason"]
+
+
+@pytest.mark.asyncio
+async def test_execute_df_id_with_chinese_punctuation():
+    ctx = MagicMock()
+    ctx.prompt = AsyncMock()
+    ctx.llm = MagicMock()
+    ctx.llm.chat = AsyncMock()
+    ctx.tools = MagicMock()
+    ctx.tools.call = AsyncMock()
+
+    mock_prompt = MagicMock()
+    mock_prompt.compile.return_value = "You are a QA task guide..."
+    ctx.prompt.return_value = mock_prompt
+
+    # Simulate tool calls for DF-0010
+    ctx.tools.call.side_effect = [
+        [{"jobId": "DF-0010", "status": "WAIT"}],
+        [{"name": "view-log", "access": "read", "risk": "low"}]
+    ]
+
+    ctx.llm.chat.return_value = '{"decision": "PASS"}'
+
+    from role import execute
+    # Input with Chinese顿号、comma、period — all must extract DF-0010
+    for inp in [
+        "任务DF-0010、DF-0011的状态",
+        "任务DF-0010，给出工具建议",
+        "DF-0010。请说明进度",
+        "查询DF-0010的记录，不代表自动合并或发布。"
+    ]:
+        result = await execute({"text": inp}, ctx)
+        assert result["decision"] == "PASS", f"Failed on input: {inp}"
+        assert "answer" in result
