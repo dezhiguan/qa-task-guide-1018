@@ -107,18 +107,15 @@ async def execute(data: dict, ctx) -> dict:
 
 
 def _extract_df_id(text: str) -> Optional[str]:
-    # Match DF- followed by 4+ digits, allowing loose boundaries: word-boundary-like,
-    # but tolerant of Chinese punctuation (、，。), ASCII punctuation (-), and whitespace.
-    # Does NOT require surrounding delimiters — matches at start/end too.
-    # Examples that must match: "DF-0012", "任务DF-0013", "DF-0014、DF-0015", "DF-0016.", "(DF-0017)", "DF-0018，"
-    # Match DF- followed by 4+ digits, tolerant of Chinese/ASCII punctuation and whitespace around
-    # Use word-boundary-like logic: require start/end or non-alnum before/after the full DF-\d+ match
-    # This handles: "DF-0010、DF-0011", "任务DF-0010，给出建议", "DF-0010。", "(DF-0010)"
-    pattern = r'(?:^|[^a-zA-Z0-9\u4e00-\u9fff])DF-(\d{4,})(?=$|[^a-zA-Z0-9\u4e00-\u9fff])'
-    m = re.search(pattern, text)
-    if not m:
+    # Match DF- followed by 4+ digits, tolerant of Chinese/ASCII punctuation and whitespace.
+    # Must match *exactly one* DF-<digits> in input; multiple IDs → BLOCKED per H2 boundary case a-4.
+    # Supports: "DF-0010", "任务DF-0010", "DF-0010、DF-0011" (first only), "DF-0010，给出建议", "DF-0010。"
+    # Uses simple left-to-right greedy match — no lookbehind/lookahead needed for this spec.
+    pattern = r'DF-(\d{4,})'
+    matches = re.findall(pattern, text)
+    if len(matches) != 1:
         return None
-    return f"DF-{m.group(1)}"
+    return f"DF-{matches[0]}"
 
 
 def _blocked(reason: str) -> dict:

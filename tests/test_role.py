@@ -143,3 +143,19 @@ async def test_execute_df_id_with_chinese_punctuation():
         result = await execute({"text": inp}, ctx)
         assert result["decision"] == "PASS", f"Failed on input: {inp}"
         assert "answer" in result
+
+
+@pytest.mark.asyncio
+async def test_execute_multiple_df_ids_blocked():
+    ctx = MagicMock()
+    ctx.prompt = AsyncMock()
+    ctx.llm = MagicMock()
+    ctx.llm.chat = AsyncMock()
+    ctx.tools = MagicMock()
+    ctx.tools.call = AsyncMock()
+
+    from role import execute
+    result = await execute({"text": "DF-0010、DF-0011的状态"}, ctx)
+
+    assert result["decision"] == "BLOCKED"
+    assert "未在输入中找到有效的DF-编号" in result["block_reason"]
