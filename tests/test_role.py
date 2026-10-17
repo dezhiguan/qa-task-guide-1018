@@ -184,6 +184,15 @@ async def test_execute_df_id_with_chinese_punctuation():
     assert result_h2_h12["decision"] == "PASS", "H2 h-12 failed"
     assert "answer" in result_h2_h12
 
+    # Additional sanity: verify H2 h-15–h-24 all BLOCKED correctly (no need to assert all, but at least one multi-ID & one missing-ID)
+    result_h2_h15 = await execute({"text": "请查询任务当前进度并给出工具建议。"}, ctx)
+    assert result_h2_h15["decision"] == "BLOCKED"
+    assert "未在输入中找到有效的DF-编号" in result_h2_h15["block_reason"]
+
+    result_h2_h19 = await execute({"text": "查询不存在的任务DF-999991，给出真实状态。"}, ctx)
+    assert result_h2_h19["decision"] == "BLOCKED"
+    assert "未在输入中找到有效的DF-编号" in result_h2_h19["block_reason"]
+
 
 @pytest.mark.asyncio
 async def test_execute_multiple_df_ids_blocked():
