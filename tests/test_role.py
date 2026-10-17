@@ -154,6 +154,11 @@ async def test_execute_df_id_with_chinese_punctuation():
     assert result_two_ids["decision"] == "BLOCKED"
     assert "未在输入中找到有效的DF-编号" in result_two_ids["block_reason"]
 
+    # Critical fix: single DF-ID with Chinese punctuation *must PASS*, e.g. "任务DF-0010，给出工具建议"
+    result_chinese_comma = await execute({"text": "任务DF-0010，给出工具建议"}, ctx)
+    assert result_chinese_comma["decision"] == "PASS", "Failed on Chinese comma-adjacent DF-ID"
+    assert "answer" in result_chinese_comma
+
 
 @pytest.mark.asyncio
 async def test_execute_multiple_df_ids_blocked():

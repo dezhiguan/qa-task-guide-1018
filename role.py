@@ -85,7 +85,7 @@ async def execute(data: dict, ctx) -> dict:
     tools_list = [
         t.get('name', '未知工具')
         for t in catalog_res
-        if t.get('access') == 'read' and t.get('risk') == 'low'
+        if str(t.get('access', '')).lower() == 'read' and str(t.get('risk', '')).lower() == 'low'
     ]
     tools_desc = "、".join(tools_list) if tools_list else "暂无可用只读工具"
 
@@ -107,34 +107,26 @@ async def execute(data: dict, ctx) -> dict:
 
 
 def _extract_df_id(text: str) -> Optional[str]:
-    # Match DF- followed by 4+ digits, tolerant of Chinese/ASCII punctuation and whitespace.
-    # Must match *exactly one* DF-<digits> in input; multiple IDs → BLOCKED per H2 boundary case a-4.
-    # Supports: "DF-0010", "任务DF-0010", "DF-0010、DF-0011" (first only), "DF-0010，给出建议", "DF-0010。"
-    # Uses simple left-to-right greedy match — no lookbehind/lookahead needed for this spec.
-    # Match DF- followed by 4+ digits, tolerant of Chinese/ASCII punctuation and whitespace.
-    # Must match *exactly one* DF-<digits> in input; multiple IDs → BLOCKED per H2 boundary case a-4.
-    # Supports: "DF-0010", "任务DF-0010", "DF-0010、DF-0011" (first only), "DF-0010，给出建议", "DF-0010。"
-    # Uses simple left-to-right greedy match — no lookbehind/lookahead needed for this spec.
-    # Match DF- followed by 4+ digits, tolerant of any surrounding Unicode chars (including Chinese),
-    # but must be a standalone token: not embedded in longer alnum/Unicode sequences.
-    # Use word boundary equivalent for Unicode: (?<!\w)(?<!\u4e00-\u9fff)DF-(\d{4,})(?!\w)(?!\u4e00-\u9fff)
-    # Instead, use simpler & robust: match 'DF-' + digits, then verify no alphanumeric/Chinese char directly before/after.
-    # We'll scan left-to-right and validate boundaries manually per match.
+    # Match DF- followed by 4+ digits, tolerant of *any* surrounding Unicode (including Chinese),
+    # with no requirement for whitespace or ASCII punctuation — e.g., '任务DF-0010' or 'DF-0010、DF-0011' is valid.
+    # Per H1: must extract *exactly one* DF-ID from input; multiple matches → BLOCKED (H2 a-4).
+    # Does NOT require word boundaries: 'abcDF-0010def' is invalid, but '任务DF-0010' and 'DF-0010。' are valid.
+    # So we check that DF-<digits> is *not preceded/followed by alphanumeric or CJK ideograph*.
     pattern = r'DF-(\d{4,})'
     matches = list(re.finditer(pattern, text))
     if len(matches) != 1:
         return None
     m = matches[0]
     start, end = m.span(0)
-    # Check preceding char: must be start-of-string or non-alnum/non-CJK
+    # Preceding char must NOT be alnum or CJK (U+4E00–U+9FFF)
     if start > 0:
         prev_char = text[start-1]
-        if prev_char.isalnum() or '\u4e00' <= prev_char <= '\u9fff':
+        if prev_char.isalnum() or ('\u4e00' <= prev_char <= '\u9fff'):
             return None
-    # Check following char: must be end-of-string or non-alnum/non-CJK
+    # Following char must NOT be alnum or CJK
     if end < len(text):
         next_char = text[end]
-        if next_char.isalnum() or '\u4e00' <= next_char <= '\u9fff':
+        if next_char.isalnum() or ('\u4e00' <= next_char <= '\u9fff'):
             return None
     return f"DF-{m.group(1)}"
 
