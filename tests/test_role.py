@@ -149,6 +149,11 @@ async def test_execute_df_id_with_chinese_punctuation():
     assert result_multi["decision"] == "BLOCKED"
     assert "未在输入中找到有效的DF-编号" in result_multi["block_reason"]
 
+    # Regression: H1 requires *exactly one* DF-ID; "任务DF-0010、DF-0011的状态" contains two → BLOCKED
+    result_two_ids = await execute({"text": "任务DF-0010、DF-0011的状态"}, ctx)
+    assert result_two_ids["decision"] == "BLOCKED"
+    assert "未在输入中找到有效的DF-编号" in result_two_ids["block_reason"]
+
 
 @pytest.mark.asyncio
 async def test_execute_multiple_df_ids_blocked():

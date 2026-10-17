@@ -115,11 +115,28 @@ def _extract_df_id(text: str) -> Optional[str]:
     # Must match *exactly one* DF-<digits> in input; multiple IDs → BLOCKED per H2 boundary case a-4.
     # Supports: "DF-0010", "任务DF-0010", "DF-0010、DF-0011" (first only), "DF-0010，给出建议", "DF-0010。"
     # Uses simple left-to-right greedy match — no lookbehind/lookahead needed for this spec.
+    # Match DF- followed by 4+ digits, tolerant of any surrounding Unicode chars (including Chinese),
+    # but must be a standalone token: not embedded in longer alnum/Unicode sequences.
+    # Use word boundary equivalent for Unicode: (?<!\w)(?<!\u4e00-\u9fff)DF-(\d{4,})(?!\w)(?!\u4e00-\u9fff)
+    # Instead, use simpler & robust: match 'DF-' + digits, then verify no alphanumeric/Chinese char directly before/after.
+    # We'll scan left-to-right and validate boundaries manually per match.
     pattern = r'DF-(\d{4,})'
-    matches = re.findall(pattern, text)
+    matches = list(re.finditer(pattern, text))
     if len(matches) != 1:
         return None
-    return f"DF-{matches[0]}"
+    m = matches[0]
+    start, end = m.span(0)
+    # Check preceding char: must be start-of-string or non-alnum/non-CJK
+    if start > 0:
+        prev_char = text[start-1]
+        if prev_char.isalnum() or '\u4e00' <= prev_char <= '\u9fff':
+            return None
+    # Check following char: must be end-of-string or non-alnum/non-CJK
+    if end < len(text):
+        next_char = text[end]
+        if next_char.isalnum() or '\u4e00' <= next_char <= '\u9fff':
+            return None
+    return f"DF-{m.group(1)}"
 
 
 def _blocked(reason: str) -> dict:
