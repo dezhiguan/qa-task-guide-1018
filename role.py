@@ -107,28 +107,18 @@ async def execute(data: dict, ctx) -> dict:
 
 
 def _extract_df_id(text: str) -> Optional[str]:
-    # Match DF- followed by 4+ digits, tolerant of *any* surrounding Unicode (including Chinese),
-    # with no requirement for whitespace or ASCII punctuation — e.g., '任务DF-0010' or 'DF-0010、DF-0011' is valid.
-    # Per H1: must extract *exactly one* DF-ID from input; multiple matches → BLOCKED (H2 a-4).
-    # Does NOT require word boundaries: 'abcDF-0010def' is invalid, but '任务DF-0010' and 'DF-0010。' are valid.
-    # So we check that DF-<digits> is *not preceded/followed by alphanumeric or CJK ideograph*.
-    pattern = r'DF-(\d{4,})'
-    matches = list(re.finditer(pattern, text))
+    # Per H1: extract *exactly one* DF-ID token from natural language input.
+    # Accepts Chinese-adjacent, punctuation-adjacent, and bare DF-<digits>.
+    # Rejects embedded (e.g., 'abcDF-0010def') and multi-ID inputs (e.g., 'DF-0010、DF-0011').
+    # Uses Unicode-aware boundary logic: DF-<digits> must be bounded by non-alnum-non-CJK,
+    # i.e., whitespace, punctuation (ASCII or Chinese), or string edge.
+    # Valid: '任务DF-0010', 'DF-0010，给出工具建议', 'DF-0010。', 'DF-0010'
+    # Invalid: 'abcDF-0010def', 'DF-0010DF-0011', 'DF-0010、DF-0011'
+    pattern = r'(?:^|[^a-zA-Z0-9\u4e00-\u9fff])DF-(\d{4,})(?=[^a-zA-Z0-9\u4e00-\u9fff]|$)'
+    matches = list(re.findall(pattern, text))
     if len(matches) != 1:
         return None
-    m = matches[0]
-    start, end = m.span(0)
-    # Preceding char must NOT be alnum or CJK (U+4E00–U+9FFF)
-    if start > 0:
-        prev_char = text[start-1]
-        if prev_char.isalnum() or ('\u4e00' <= prev_char <= '\u9fff'):
-            return None
-    # Following char must NOT be alnum or CJK
-    if end < len(text):
-        next_char = text[end]
-        if next_char.isalnum() or ('\u4e00' <= next_char <= '\u9fff'):
-            return None
-    return f"DF-{m.group(1)}"
+    return f"DF-{matches[0]}"
 
 
 def _blocked(reason: str) -> dict:

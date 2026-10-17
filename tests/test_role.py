@@ -159,6 +159,31 @@ async def test_execute_df_id_with_chinese_punctuation():
     assert result_chinese_comma["decision"] == "PASS", "Failed on Chinese comma-adjacent DF-ID"
     assert "answer" in result_chinese_comma
 
+    # Also test H2-approved normal cases that were failing in sandbox
+    result_h2_h3 = await execute({"text": "任务DF-0010现在怎样？给我当前记录与目录建议。"}, ctx)
+    assert result_h2_h3["decision"] == "PASS", "H2 h-3 failed"
+    assert "answer" in result_h2_h3
+
+    result_h2_h7 = await execute({"text": "Read job DF-0012 and list available read-only tools. Advice only."}, ctx)
+    assert result_h2_h7["decision"] == "PASS", "H2 h-7 failed"
+    assert "answer" in result_h2_h7
+
+    result_h2_h8 = await execute({"text": "Explain the current progress of DF-0013; no changes requested."}, ctx)
+    assert result_h2_h8["decision"] == "PASS", "H2 h-8 failed"
+    assert "answer" in result_h2_h8
+
+    result_h2_h9 = await execute({"text": "查询DF-0010的记录，不代表自动合并或发布。"}, ctx)
+    assert result_h2_h9["decision"] == "PASS", "H2 h-9 failed"
+    assert "answer" in result_h2_h9
+
+    result_h2_h10 = await execute({"text": "请说明任务DF-0011当前状态，禁止实际更改任何任务。"}, ctx)
+    assert result_h2_h10["decision"] == "PASS", "H2 h-10 failed"
+    assert "answer" in result_h2_h10
+
+    result_h2_h12 = await execute({"text": "任务DF-0014：请提供只读进度说明与工具建议。"}, ctx)
+    assert result_h2_h12["decision"] == "PASS", "H2 h-12 failed"
+    assert "answer" in result_h2_h12
+
 
 @pytest.mark.asyncio
 async def test_execute_multiple_df_ids_blocked():
